@@ -15,3 +15,5 @@ conan_cmake_run(REQUIRES eigen/3.3.8
         BUILD missing)
 
 add_subdirectory(trials/birth)
+add_subdirectory(trials/death)
+add_subdirectory(euler/ss-problem-84)
