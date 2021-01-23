@@ -1,6 +1,20 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include <string>
+#include <iostream>
+#include <fstream>
+
+bool is_big_endian(void)
+{
+    union {
+        uint32_t i;
+        char c[4];
+    } bint = {0x01020304};
+
+    return bint.c[0] == 1;
+}
+
 union float_bits {
     float f;
     //float 31 is sign
@@ -15,48 +29,79 @@ bool get_bit(unsigned int x, int loc){
     return bit;
 }
 
+bool get_bit(float_bits fb, int loc){
+    return get_bit(fb.bits,loc);
+}
 
-void print_unit_bits(unsigned int x, int start=31, int end=0) {
-    for (auto foo=start; foo>=end; foo--){
+int get_exponent(float_bits fb){
+    unsigned int bit_mask = 255<<23;
+    unsigned int exp_bits = fb.bits & bit_mask;
+    return static_cast<int>(exp_bits>>23)-127;
+}
+
+
+void print_unit_bits(unsigned int x) {
+    for (auto foo=0; foo<32; foo++){
         bool bit_foo = get_bit(x,foo);
         printf("%s", bit_foo ? "1" : "0");
-        if (foo==31) printf(" ");
-        if (foo==23) printf(" ");
     }
 }
 
-int get_float_bits_exp(float_bits x)
-{
-    unsigned int bit_delta = 1 << 23;
-
-//    unsigned int
-//    int exp=0;
-//    int two_pow = 1;
-//    for (auto foo = 30; foo < 23, foo++){
-//        static_cast<int8_t>()
-//    }
-}
 
 void pretty_print_float_bits(float f) {
     //[sign bit | 8 exponents | 23 mantissa]
-    float_bits fbit;
-    fbit.f = f;
-    //
-    unsigned int bit_delta = 1 << 31;
-    bool sign_bit = fbit.bits & bit_delta;
-    unsigned int bit_delta2 = 255 << 24;
-    int expon = fbit.bits & bit_delta;
-    printf("%s", sign_bit ? "-" : "");
-//    printf("1.");
-    print_unit_bits(fbit.bits);
-    printf("\n");
+    float_bits fb;
+    fb.f = f;
+    printf("%s",  get_bit(fb,31) ? "-" : "");
+    printf("%d", get_exponent(fb));
+    printf("1.");
+    for (int foo=22; foo>=0; foo--) {
+        printf("%s",  get_bit(fb, foo) ? "1" : "0");
+    }
+    printf(" * 2^");
 }
 
-int main()
-{
-//    a single sign bit, eight exponent bits, and 23 mantissa bits
-    pretty_print_float_bits(0);
-    pretty_print_float_bits(1);
-    pretty_print_float_bits(0.1111);
+std::string prettystr_float_bits(float f) {
+    //[sign bit | 8 exponents | 23 mantissa]
+    float_bits fb;
+    fb.f = f;
+    std::string pretty = "";
+    pretty += get_bit(fb,31) ? "-" : "";
+    int exp = get_exponent(fb);
+    if (exp==-127) {
+        exp = -126;
+        pretty += "0.";
+    }
+    else pretty += "1.";
+    for (int foo=22; foo>=0; foo--) {
+        pretty += get_bit(fb, foo) ? "1" : "0";
+    }
+    pretty += " * 2^";
+    pretty += std::to_string(exp);
+    return pretty;
+}
 
+
+int main( int argc, char *argv[] )  {
+    if( argc != 3 ) {
+        printf("Need an input file name and an output file name.\n");
+    }
+    std::ifstream fin(argv[1]);
+    std::fstream fout(argv[2]);
+
+    std::string line;
+    std::getline(fin, line);
+    int n_examples = stoi(line);
+
+    for (int foo=0; foo<n_examples; foo++){
+        std::getline(fin,line);
+        float ff = std::stof(line);
+        std::string pff = prettystr_float_bits(ff);
+        fout << pff << std::endl;
+    }
+
+    fin.close();
+    fout.close();
+
+    return 0;
 }
